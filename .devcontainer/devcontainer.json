@@ -1,0 +1,8 @@
+{
+  "name": "Node.js Hello-World",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:0-18",
+  "forwardPorts": [3000],
+  "workspaceFolder": "/workspace",
+  "extensions": ["dbaeumer.vscode-eslint"],
+  "postCreateCommand": "npm install"
+}
