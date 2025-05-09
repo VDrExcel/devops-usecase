@@ -1,31 +1,67 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: Node.js CI
+name: CI + Deploy
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: npm test
+
+      # → Artefakt packen
+      - name: Package artifact
+        run: |
+          mkdir -p artifact
+          # Beispiel: build-Output + package.json
+          cp -r dist package.json artifact/
+          tar czf artifact.tar.gz -C artifact .
+
+      # → SSH-Key und known_hosts
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.ARTIFACT_SSH_KEY }}
+          HOST: ${{ secrets.ARTIFACT_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 22 "$HOST" >> ~/.ssh/known_hosts
+
+      # → Deployment
+      - name: Deploy to Server
+        env:
+          HOST: ${{ secrets.ARTIFACT_HOST }}
+          USERNAME: ${{ secrets.ARTIFACT_USERNAME }}
+        run: |
+          rsync -azP -e "ssh -i $HOME/.ssh/id_ed25519 -p 22" \
+            artifact.tar.gz "$USERNAME@$HOST:~/deploy/"
+
+      # (Optional) Remote-Commands z.B. entpacken
+      - name: Remote extract & install
+        env:
+          HOST: ${{ secrets.ARTIFACT_HOST }}
+          USERNAME: ${{ secrets.ARTIFACT_USERNAME }}
+        run: |
+          ssh -i $HOME/.ssh/id_ed25519 -p 22 $USERNAME@$HOST << 'EOF'
+            cd ~/deploy
+            tar xzf artifact.tar.gz
+            cd artifact
+            npm install --production
+            # z.B. PM2/Service neu starten:
+            # pm2 restart hello-world
+          EOF
