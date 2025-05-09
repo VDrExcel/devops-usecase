@@ -26,10 +26,8 @@ jobs:
       # → Artefakt packen
       - name: Package artifact
         run: |
-          mkdir -p artifact
-          # Beispiel: build-Output + package.json
-          cp -r dist package.json artifact/
-          tar czf artifact.tar.gz -C artifact .
+          tar czf hello-world.tar.gz \
+            server.js package.json package-lock.json
 
       # → SSH-Key und known_hosts
       - name: Setup SSH
