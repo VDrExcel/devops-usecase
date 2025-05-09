@@ -4,7 +4,7 @@ const port = process.env.PORT || 3000;
 
 // Route für Hello World
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.sen('Hello World!');
 });
 
 // Nur beim direkten Ausführen starten
